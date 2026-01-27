@@ -253,26 +253,36 @@ function attachEventListeners() {
   // Typography sliders
   elements.fontSizeSlider.addEventListener('input', (e) => {
     elements.fontSizeValue.textContent = `${e.target.value}%`;
+  });
+  elements.fontSizeSlider.addEventListener('change', (e) => {
     handleSettingChange('fontSize', parseInt(e.target.value));
   });
 
   elements.lineHeightSlider.addEventListener('input', (e) => {
     elements.lineHeightValue.textContent = parseFloat(e.target.value).toFixed(1);
+  });
+  elements.lineHeightSlider.addEventListener('change', (e) => {
     handleSettingChange('lineHeight', parseFloat(e.target.value));
   });
 
   elements.letterSpacingSlider.addEventListener('input', (e) => {
     elements.letterSpacingValue.textContent = `${e.target.value}px`;
+  });
+  elements.letterSpacingSlider.addEventListener('change', (e) => {
     handleSettingChange('letterSpacing', parseFloat(e.target.value));
   });
 
   elements.wordSpacingSlider.addEventListener('input', (e) => {
     elements.wordSpacingValue.textContent = `${e.target.value}px`;
+  });
+  elements.wordSpacingSlider.addEventListener('change', (e) => {
     handleSettingChange('wordSpacing', parseInt(e.target.value));
   });
 
   elements.paragraphSpacingSlider.addEventListener('input', (e) => {
     elements.paragraphSpacingValue.textContent = `${parseFloat(e.target.value).toFixed(2)}em`;
+  });
+  elements.paragraphSpacingSlider.addEventListener('change', (e) => {
     handleSettingChange('paragraphSpacing', parseFloat(e.target.value));
   });
 
@@ -288,6 +298,8 @@ function attachEventListeners() {
 
   elements.gradientStrengthSlider.addEventListener('input', (e) => {
     elements.gradientStrengthValue.textContent = `${e.target.value}%`;
+  });
+  elements.gradientStrengthSlider.addEventListener('change', (e) => {
     handleSettingChange('gradientStrength', parseInt(e.target.value));
   });
 
@@ -302,6 +314,8 @@ function attachEventListeners() {
 
   elements.rulerOpacitySlider.addEventListener('input', (e) => {
     elements.rulerOpacityValue.textContent = `${e.target.value}%`;
+  });
+  elements.rulerOpacitySlider.addEventListener('change', (e) => {
     handleSettingChange('rulerOpacity', parseInt(e.target.value));
   });
 
@@ -312,6 +326,8 @@ function attachEventListeners() {
 
   elements.maxWidthSlider.addEventListener('input', (e) => {
     elements.maxWidthValue.textContent = `${e.target.value}px`;
+  });
+  elements.maxWidthSlider.addEventListener('change', (e) => {
     handleSettingChange('maxReadingWidth', parseInt(e.target.value));
   });
 
@@ -322,6 +338,8 @@ function attachEventListeners() {
 
   elements.ttsRateSlider.addEventListener('input', (e) => {
     elements.ttsRateValue.textContent = `${parseFloat(e.target.value).toFixed(1)}x`;
+  });
+  elements.ttsRateSlider.addEventListener('change', (e) => {
     handleSettingChange('ttsRate', parseFloat(e.target.value));
   });
 }

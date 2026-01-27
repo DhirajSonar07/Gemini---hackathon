@@ -114,6 +114,11 @@ function handleMessage(message, sender, sendResponse) {
       sendResponse(info);
       return true;
 
+    case 'stopTTS':
+      stopTTS();
+      sendResponse({ success: true });
+      return true;
+
     case 'disable':
       removeAllStyles();
       sendResponse({ success: true });
@@ -152,7 +157,7 @@ async function applySettings(settings) {
 
   // Handle BeeLine gradient
   if (settings.gradientEnabled) {
-    applyGradient(settings.gradientStrength);
+    applyGradient(settings.gradientStrength, settings.colorMode);
   } else {
     removeGradient();
   }
@@ -338,38 +343,76 @@ function generateMainCSS(settings) {
 
   // Add color mode styles
   if (colors.bg) {
+    // For strict modes (Dark, High Contrast), we need to be aggressive
+    if (['dark', 'high-contrast'].includes(settings.colorMode)) {
+      css += `
+        /* Aggressive Default Mode for ${settings.colorMode} */
+        body.dyslexia-reader-enabled {
+          background-color: ${colors.bg} !important;
+          color: ${colors.text} !important;
+        }
+
+        /* Force all elements to inherit or set color/bg */
+        body.dyslexia-reader-enabled *:not(img):not(video):not(svg):not(canvas):not(iframe):not([class*="icon"]) {
+          background-color: transparent !important; /* Let body bg shine through or use explicit bg */
+          color: inherit !important;
+          border-color: ${colors.link} !important; /* Subtle border visibility */
+        }
+        
+        /* Re-apply bg to main containers to ensure opacity coverage */
+        body.dyslexia-reader-enabled article,
+        body.dyslexia-reader-enabled main,
+        body.dyslexia-reader-enabled [role="main"],
+        body.dyslexia-reader-enabled .${CONTENT_WRAPPER_CLASS},
+        body.dyslexia-reader-enabled .mw-body, /* Wikipedia */
+        body.dyslexia-reader-enabled .content,
+        body.dyslexia-reader-enabled #content {
+          background-color: ${colors.bg} !important;
+          color: ${colors.text} !important;
+        }
+
+        /* Fix links */
+        body.dyslexia-reader-enabled a,
+        body.dyslexia-reader-enabled a * {
+          color: ${colors.link} !important;
+        }
+      `;
+    } else {
+      // Gentle modes (Sepia, Cream, etc)
+      css += `
+        /* Color mode: ${settings.colorMode} */
+        body.dyslexia-reader-enabled,
+        body.dyslexia-reader-enabled article,
+        body.dyslexia-reader-enabled main,
+        body.dyslexia-reader-enabled [role="main"],
+        body.dyslexia-reader-enabled [role="article"],
+        body.dyslexia-reader-enabled .${CONTENT_WRAPPER_CLASS} {
+          background-color: ${colors.bg} !important;
+          color: ${colors.text} !important;
+        }
+        
+        body.dyslexia-reader-enabled p,
+        body.dyslexia-reader-enabled li,
+        body.dyslexia-reader-enabled td,
+        body.dyslexia-reader-enabled th {
+          color: ${colors.text} !important;
+        }
+        
+        body.dyslexia-reader-enabled a {
+          color: ${colors.link} !important;
+        }
+      `;
+    }
+
     css += `
-      /* Color mode: ${settings.colorMode} */
-      body.dyslexia-reader-enabled,
-      body.dyslexia-reader-enabled article,
-      body.dyslexia-reader-enabled main,
-      body.dyslexia-reader-enabled [role="main"],
-      body.dyslexia-reader-enabled [role="article"],
-      body.dyslexia-reader-enabled .${CONTENT_WRAPPER_CLASS} {
-        background-color: ${colors.bg} !important;
-        color: ${colors.text} !important;
-      }
-      
-      body.dyslexia-reader-enabled p,
-      body.dyslexia-reader-enabled li,
-      body.dyslexia-reader-enabled span,
-      body.dyslexia-reader-enabled div,
-      body.dyslexia-reader-enabled td,
-      body.dyslexia-reader-enabled th {
-        color: ${colors.text} !important;
-      }
-      
-      body.dyslexia-reader-enabled a {
-        color: ${colors.link} !important;
-      }
-      
-      /* Preserve images */
+      /* Preserve images and media in all modes */
       body.dyslexia-reader-enabled img,
       body.dyslexia-reader-enabled video,
       body.dyslexia-reader-enabled svg,
       body.dyslexia-reader-enabled canvas,
       body.dyslexia-reader-enabled picture {
         background-color: transparent !important;
+        opacity: 1 !important;
       }
     `;
   }
@@ -389,16 +432,65 @@ function generateMainCSS(settings) {
   return css;
 }
 
-// ========================================
-// BeeLine Gradient
-// ========================================
+/**
+ * Helper to interpolate between two RGB colors.
+ * @param {object} color1 - {r, g, b}
+ * @param {object} color2 - {r, g, b}
+ * @param {number} factor - Interpolation factor (0 to 1)
+ * @returns {object} Interpolated color {r, g, b}
+ */
+function interpolateColor(color1, color2, factor) {
+  const result = {
+    r: Math.round(color1.r + factor * (color2.r - color1.r)),
+    g: Math.round(color1.g + factor * (color2.g - color1.g)),
+    b: Math.round(color1.b + factor * (color2.b - color1.b))
+  };
+  return result;
+}
 
 /**
  * Apply BeeLine-style gradient to text
  */
-function applyGradient(strength) {
-  // Create gradient CSS for text
-  const opacity = strength / 100;
+function applyGradient(strength, colorMode) {
+  // 1. Determine Base Text Color based on Mode
+  const isDarkMode = ['dark', 'high-contrast'].includes(colorMode);
+  // RGB values: High-Contrast Dark uses whiteish text, others use dark text
+  const baseColor = isDarkMode ? { r: 232, g: 232, b: 232 } : { r: 34, g: 34, b: 34 };
+
+  // 2. Determine Gradient Target Colors
+  let targetColors;
+  if (isDarkMode) {
+    // Pastels for dark mode
+    targetColors = [
+      { r: 255, g: 107, b: 107 }, // Red
+      { r: 255, g: 217, b: 61 },  // Yellow
+      { r: 107, g: 203, b: 119 }, // Green
+      { r: 77, g: 150, b: 255 },  // Blue
+      { r: 155, g: 89, b: 182 }   // Purple
+    ];
+  } else {
+    // Saturated darks for light mode
+    targetColors = [
+      { r: 200, g: 40, b: 40 },   // Dark Red
+      { r: 200, g: 100, b: 0 },   // Dark Orange
+      { r: 40, g: 160, b: 60 },   // Dark Green
+      { r: 30, g: 80, b: 200 },   // Dark Blue
+      { r: 120, g: 40, b: 140 }   // Dark Purple
+    ];
+  }
+
+  // 3. Interpolate Colors based on Strength (0-100)
+  // Strength 0 = Base Color (no gradient)
+  // Strength 100 = Target Gradient Color
+  const factor = strength / 100;
+
+  const finalColors = targetColors.map(c => interpolateColor(baseColor, c, factor));
+
+  // 4. Construct CSS
+  const gradientStops = finalColors.map((c, i) => {
+    const percent = i * 25;
+    return `rgb(${c.r}, ${c.g}, ${c.b}) ${percent}%`;
+  }).join(',\n        ');
 
   const gradientCSS = `
     /* BeeLine Gradient Mode */
@@ -406,42 +498,24 @@ function applyGradient(strength) {
     body.dyslexia-reader-enabled li {
       background: linear-gradient(
         90deg,
-        rgba(255, 107, 107, ${opacity * 0.3}) 0%,
-        rgba(255, 217, 61, ${opacity * 0.3}) 25%,
-        rgba(107, 203, 119, ${opacity * 0.3}) 50%,
-        rgba(77, 150, 255, ${opacity * 0.3}) 75%,
-        rgba(155, 89, 182, ${opacity * 0.3}) 100%
+        ${gradientStops}
       );
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
       text-fill-color: transparent;
+      color: transparent !important;
     }
     
     /* Fallback for browsers that don't support background-clip: text */
     @supports not (background-clip: text) {
-      body.dyslexia-reader-enabled p,
-      body.dyslexia-reader-enabled li {
-        position: relative;
-      }
-      
-      body.dyslexia-reader-enabled p::before,
-      body.dyslexia-reader-enabled li::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(
-          90deg,
-          rgba(255, 107, 107, ${opacity * 0.1}) 0%,
-          rgba(107, 203, 119, ${opacity * 0.1}) 50%,
-          rgba(155, 89, 182, ${opacity * 0.1}) 100%
-        );
-        pointer-events: none;
-        z-index: -1;
-      }
+       /* Fallback: Just show simple colored text if Gradient is strong, otherwise base */
+       body.dyslexia-reader-enabled p,
+       body.dyslexia-reader-enabled li {
+         color: rgb(${baseColor.r}, ${baseColor.g}, ${baseColor.b}) !important;
+         -webkit-text-fill-color: inherit !important;
+         text-fill-color: inherit !important;
+       }
     }
   `;
 
@@ -581,10 +655,12 @@ function updateRulerPosition(y) {
  * Remove reading ruler
  */
 function removeRuler() {
-  if (rulerElement) {
-    rulerElement.remove();
-    rulerElement = null;
+  // Always try to find by ID to ensure cleanup
+  const existing = document.getElementById(RULER_ID);
+  if (existing) {
+    existing.remove();
   }
+  rulerElement = null;
 }
 
 // ========================================
