@@ -35,9 +35,7 @@ A premium accessibility tool that automatically improves web readability with sm
 ### Keyboard Shortcuts
 
 -   **Alt+Shift+D**: Toggle Extension (On/Off)
--   **Alt+Shift+R**: Toggle Reading Ruler
--   **Alt+Shift+S**: Start/Stop Text-to-Speech
--   **Alt+Shift+I**: Toggle Immersive Mode
+-
 
 ## Technologies
 
