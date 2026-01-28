@@ -45,13 +45,13 @@ const DEFAULT_SETTINGS = {
  * Handle extension installation
  */
 chrome.runtime.onInstalled.addListener(async (details) => {
-    console.log('[Background] Extension installed/updated:', details.reason);
+    // console.log('[Background] Extension installed/updated:', details.reason);
 
     if (details.reason === 'install') {
         // First install - set defaults
         try {
             await chrome.storage.sync.set({ globalSettings: DEFAULT_SETTINGS });
-            console.log('[Background] Default settings initialized');
+            // console.log('[Background] Default settings initialized');
 
             // Open welcome page (optional - can be added later)
             // chrome.tabs.create({ url: 'welcome.html' });
@@ -62,7 +62,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
     if (details.reason === 'update') {
         // Handle updates - migrate settings if needed
-        console.log('[Background] Updated to version:', chrome.runtime.getManifest().version);
+        // console.log('[Background] Updated to version:', chrome.runtime.getManifest().version);
         await migrateSettingsIfNeeded();
     }
 });
@@ -71,7 +71,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
  * Handle extension startup
  */
 chrome.runtime.onStartup.addListener(() => {
-    console.log('[Background] Extension started');
+    // console.log('[Background] Extension started');
 });
 
 /**
@@ -87,7 +87,7 @@ async function migrateSettingsIfNeeded() {
 
         if (JSON.stringify(migrated) !== JSON.stringify(settings)) {
             await chrome.storage.sync.set({ globalSettings: migrated });
-            console.log('[Background] Settings migrated');
+            // console.log('[Background] Settings migrated');
         }
     } catch (error) {
         console.error('[Background] Error migrating settings:', error);
@@ -99,7 +99,7 @@ async function migrateSettingsIfNeeded() {
 // ========================================
 
 chrome.commands.onCommand.addListener(async (command) => {
-    console.log('[Background] Command received:', command);
+    // console.log('[Background] Command received:', command);
 
     // Get current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -107,7 +107,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 
     // Skip restricted pages
     if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
-        console.log('[Background] Cannot apply to restricted page');
+        // console.log('[Background] Cannot apply to restricted page');
         return;
     }
 
@@ -153,7 +153,7 @@ chrome.commands.onCommand.addListener(async (command) => {
             break;
 
         default:
-            console.log('[Background] Unknown command:', command);
+            // console.log('[Background] Unknown command:', command);
             return;
     }
 
@@ -175,7 +175,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  * Handle messages from popup and content scripts
  */
 async function handleMessage(message, sender) {
-    console.log('[Background] Message received:', message.action);
+    // console.log('[Background] Message received:', message.action);
 
     switch (message.action) {
         case 'getSettings':
@@ -197,7 +197,7 @@ async function handleMessage(message, sender) {
             return await siteHasOverride(message.domain);
 
         default:
-            console.log('[Background] Unknown action:', message.action);
+            // console.log('[Background] Unknown action:', message.action);
             return { error: 'Unknown action' };
     }
 }
@@ -334,7 +334,7 @@ async function sendToTab(tabId, message) {
             await new Promise(r => setTimeout(r, 100));
             return await chrome.tabs.sendMessage(tabId, message);
         } catch (e) {
-            console.error('[Background] Could not send to tab:', e);
+            // console.error('[Background] Could not send to tab:', e);
             throw e;
         }
     }
@@ -379,4 +379,4 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
     }
 });
 
-console.log('[Background] Service worker initialized');
+// console.log('[Background] Service worker initialized');

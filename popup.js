@@ -113,7 +113,7 @@ async function loadSettings() {
 
     applySettingsToUI();
   } catch (error) {
-    console.error('[Popup] Error loading settings:', error);
+    // console.error('[Popup] Error loading settings:', error);
     currentSettings = getDefaultSettings();
     applySettingsToUI();
   }
@@ -478,7 +478,7 @@ async function handleTTSPlay() {
       elements.ttsStopBtn.disabled = false;
     }
   } catch (e) {
-    console.error('[Popup] TTS error:', e);
+    // console.error('[Popup] TTS error:', e);
   }
 }
 
@@ -491,7 +491,7 @@ async function handleTTSPause() {
       elements.ttsPauseBtn.disabled = true;
     }
   } catch (e) {
-    console.error('[Popup] TTS error:', e);
+    // console.error('[Popup] TTS error:', e);
   }
 }
 
@@ -505,7 +505,7 @@ async function handleTTSStop() {
       elements.ttsStopBtn.disabled = true;
     }
   } catch (e) {
-    console.error('[Popup] TTS error:', e);
+    // console.error('[Popup] TTS error:', e);
   }
 }
 
@@ -553,11 +553,11 @@ async function saveAndApply() {
             settings: currentSettings
           });
         } catch (injectError) {
-          console.error('[Popup] Could not inject scripts:', injectError);
+          // console.error('[Popup] Could not inject scripts:', injectError);
         }
       }
     }
   } catch (error) {
-    console.error('[Popup] Error saving settings:', error);
+    // console.error('[Popup] Error saving settings:', error);
   }
 }

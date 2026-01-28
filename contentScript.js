@@ -57,7 +57,8 @@ let ttsState = {
   utterance: null,
   currentIndex: 0,
   sentences: [],
-  highlightedElement: null
+  highlightedElement: null,
+  rootElement: null
 };
 
 // ========================================
@@ -68,7 +69,7 @@ let ttsState = {
  * Initialize the content script
  */
 async function initialize() {
-  console.log('[ContentScript] Initializing...');
+  // console.log('[ContentScript] Initializing...');
 
   // Load settings
   try {
@@ -79,7 +80,7 @@ async function initialize() {
       await applySettings(currentSettings);
     }
   } catch (error) {
-    console.error('[ContentScript] Error loading settings:', error);
+    // console.error('[ContentScript] Error loading settings:', error);
   }
 
   // Set up message listener
@@ -89,7 +90,7 @@ async function initialize() {
   document.addEventListener('keydown', handleKeyDown);
   document.addEventListener('mousemove', handleMouseMove);
 
-  console.log('[ContentScript] Initialized');
+  // console.log('[ContentScript] Initialized');
 }
 
 // ========================================
@@ -97,7 +98,7 @@ async function initialize() {
 // ========================================
 
 function handleMessage(message, sender, sendResponse) {
-  console.log('[ContentScript] Message received:', message.action);
+  // console.log('[ContentScript] Message received:', message.action);
 
   switch (message.action) {
     case 'applySettings':
@@ -145,7 +146,7 @@ async function applySettings(settings) {
     return;
   }
 
-  console.log('[ContentScript] Applying settings...');
+  // console.log('[ContentScript] Applying settings...');
 
   // Load OpenDyslexic font if needed
   if (settings.fontFamily === 'OpenDyslexic') {
@@ -206,7 +207,7 @@ function removeAllStyles() {
   // Remove body class
   document.body.classList.remove('dyslexia-reader-enabled');
 
-  console.log('[ContentScript] All styles removed');
+  // console.log('[ContentScript] All styles removed');
 }
 
 // ========================================
@@ -637,18 +638,23 @@ function createRuler(type, opacity) {
   document.body.appendChild(rulerElement);
 }
 
+// Ruler animation logic
+let rulerRafId = null;
+
 /**
  * Update ruler position based on mouse
  */
 function updateRulerPosition(y) {
   if (!rulerElement || !currentSettings?.rulerEnabled) return;
 
-  const type = currentSettings.rulerType;
+  if (rulerRafId) cancelAnimationFrame(rulerRafId);
 
-  if (type === 'line') {
-    rulerElement.style.top = `${y}px`;
-  }
-  // Focus types stay centered and don't move
+  rulerRafId = requestAnimationFrame(() => {
+    const type = currentSettings.rulerType;
+    if (type === 'line') {
+      rulerElement.style.top = `${y}px`;
+    }
+  });
 }
 
 /**
@@ -675,7 +681,6 @@ function applyImmersiveMode(maxWidth) {
   const mainContent = window.DyslexiaDetection?.findMainContent();
 
   if (!mainContent) {
-    console.log('[ContentScript] Could not find main content for immersive mode');
     return;
   }
 
@@ -745,39 +750,112 @@ function removeImmersiveMode() {
 /**
  * Toggle TTS playback
  */
-function toggleTTS() {
+async function toggleTTS() {
   if (ttsState.isPlaying) {
-    pauseTTS();
+    stopTTS();
   } else {
-    startTTS();
+    await startTTS();
   }
 }
 
 /**
- * Start TTS playback
+ * Start TTS playback with robust fallback and voice loading
  */
-function startTTS() {
-  if (ttsState.isPlaying) return;
+async function startTTS() {
+  // 1. Immediate Cancellation
+  speechSynthesis.cancel();
+  ttsState.isPlaying = false;
 
-  // Find readable content
-  const content = window.DyslexiaDetection?.findMainContent();
-  if (!content) {
-    console.log('[ContentScript] No content found for TTS');
+  // 2. Ensure Voices are Loaded
+  const voice = await waitForVoices();
+
+  // 3. Detect Content Source
+  let textToRead = '';
+  let rootElement = null;
+
+  const selection = window.getSelection();
+  const hasSelection = selection && !selection.isCollapsed && selection.toString().trim().length > 0;
+
+  if (hasSelection) {
+    // Case A: Read Selected Text
+    textToRead = selection.toString().trim();
+    console.log('[ContentScript] TTS: Using User Selection');
+
+    // Determine context for highlighting
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      let container = range.commonAncestorContainer;
+      rootElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+    }
+
+  } else {
+    // Case B: Fallback to Focused/Main Content
+    console.log('[ContentScript] TTS: No Selection, Detecting Main Content...');
+
+    // Attempt 1: Main Content Detector
+    rootElement = window.DyslexiaDetection?.findMainContent();
+
+    if (!rootElement) {
+      console.warn('[ContentScript] TTS: No main content found. Trying backup detection.');
+      // Attempt 2: Fallback to body if detection fails but text exists
+      if (document.body.innerText.length > 200) {
+        rootElement = document.body;
+      }
+    }
+
+    if (rootElement) {
+      textToRead = rootElement.innerText || rootElement.textContent; // innerText is often better for "readable" text
+      console.log('[ContentScript] TTS: Found content in', rootElement.tagName);
+    }
+  }
+
+  // 4. Validate Content
+  if (!textToRead || textToRead.trim().length === 0) {
+    console.error('[ContentScript] TTS: No readable text found.');
+    alert('Dyslexia Reader: No readable text found. Please select some text.');
     return;
   }
 
-  // Get text and split into sentences
-  const text = content.textContent.trim();
-  ttsState.sentences = window.DyslexiaDetection?.splitIntoSentences(text) || [text];
+  // 5. Prepare State
+  ttsState.sentences = window.DyslexiaDetection?.splitIntoSentences(textToRead) || [textToRead];
   ttsState.currentIndex = 0;
+  ttsState.rootElement = rootElement || document.body;
+  ttsState.isPlaying = true;
 
-  speakNextSentence();
+  // 6. Begin Speaking
+  speakNextSentence(voice);
+}
+
+/**
+ * Wait for voices to be loaded (Chrome async issue fix)
+ */
+function waitForVoices() {
+  return new Promise((resolve) => {
+    let voices = speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      resolve(voices);
+      return;
+    }
+
+    // If empty, wait for event
+    speechSynthesis.onvoiceschanged = () => {
+      voices = speechSynthesis.getVoices();
+      resolve(voices);
+    };
+
+    // Timeout fallback (some browsers don't fire event if no internet/error)
+    setTimeout(() => {
+      resolve(speechSynthesis.getVoices());
+    }, 2000);
+  });
 }
 
 /**
  * Speak the next sentence
  */
-function speakNextSentence() {
+function speakNextSentence(voices) {
+  if (!ttsState.isPlaying) return;
+
   if (ttsState.currentIndex >= ttsState.sentences.length) {
     stopTTS();
     return;
@@ -785,38 +863,55 @@ function speakNextSentence() {
 
   const sentence = ttsState.sentences[ttsState.currentIndex];
 
+  // Skip empty sentences
+  if (!sentence || sentence.trim().length === 0) {
+    ttsState.currentIndex++;
+    speakNextSentence(voices);
+    return;
+  }
+
   // Create utterance
   ttsState.utterance = new SpeechSynthesisUtterance(sentence);
-  ttsState.utterance.rate = currentSettings?.ttsRate || 1.0;
 
-  // Set voice if specified
-  if (currentSettings?.ttsVoice) {
-    const voices = speechSynthesis.getVoices();
-    const voice = voices.find(v => v.name === currentSettings.ttsVoice);
-    if (voice) {
-      ttsState.utterance.voice = voice;
+  // Apply Settings
+  ttsState.utterance.rate = currentSettings?.ttsRate || 1.0;
+  ttsState.utterance.pitch = 1.0;
+  ttsState.utterance.volume = 1.0;
+
+  // Apply Voice
+  if (currentSettings?.ttsVoice && voices) {
+    const selectedVoice = voices.find(v => v.name === currentSettings.ttsVoice);
+    if (selectedVoice) {
+      ttsState.utterance.voice = selectedVoice;
     }
   }
 
-  // Handle events
+  // Event Handlers
   ttsState.utterance.onstart = () => {
-    highlightSentence(sentence);
+    if (ttsState.isPlaying) {
+      highlightSentence(sentence);
+    }
   };
 
   ttsState.utterance.onend = () => {
     clearHighlight();
     ttsState.currentIndex++;
     if (ttsState.isPlaying) {
-      speakNextSentence();
+      speakNextSentence(voices);
     }
   };
 
   ttsState.utterance.onerror = (e) => {
-    console.error('[ContentScript] TTS error:', e);
-    clearHighlight();
+    console.error('[ContentScript] TTS Error:', e);
+    // Continue despite error?
+    if (e.error !== 'interrupted' && e.error !== 'canceled') {
+      clearHighlight();
+      ttsState.currentIndex++;
+      speakNextSentence(voices);
+    }
   };
 
-  ttsState.isPlaying = true;
+  // Speak
   speechSynthesis.speak(ttsState.utterance);
 }
 
@@ -844,6 +939,7 @@ function stopTTS() {
   ttsState.isPlaying = false;
   ttsState.currentIndex = 0;
   ttsState.sentences = [];
+  ttsState.rootElement = null;
   speechSynthesis.cancel();
   clearHighlight();
 }
@@ -854,11 +950,11 @@ function stopTTS() {
 function highlightSentence(sentence) {
   clearHighlight();
 
-  const content = window.DyslexiaDetection?.findMainContent();
-  if (!content) return;
+  const root = ttsState.rootElement || window.DyslexiaDetection?.findMainContent();
+  if (!root || !root.isConnected) return; // Note: isConnected check prevents errors on detached nodes
 
   // Find and highlight the sentence in the DOM
-  const textNodes = window.DyslexiaDetection?.getTextNodes(content) || [];
+  const textNodes = window.DyslexiaDetection?.getTextNodes(root) || [];
 
   for (const node of textNodes) {
     const nodeText = node.textContent;
