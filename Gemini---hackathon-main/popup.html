@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dyslexia-Friendly Reading Engine</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">📖</div>
+        <div class="brand-text">
+          <h1 class="title">Reading Engine</h1>
+          <p class="subtitle">Dyslexia-Friendly</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="resetBtn" class="icon-btn" title="Reset settings" aria-label="Reset to default settings">
+          <span aria-hidden="true">↺</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Site Indicator -->
+    <div id="siteIndicator" class="site-indicator hidden">
+      <span class="indicator-icon" aria-hidden="true">📌</span>
+      <span class="indicator-text">Custom settings for this site</span>
+    </div>
+
+    <!-- Master Toggle -->
+    <div class="master-toggle">
+      <div class="toggle-content">
+        <span class="toggle-icon" aria-hidden="true">✨</span>
+        <div class="toggle-text">
+          <span class="toggle-label">Reading Mode</span>
+          <span id="statusText" class="toggle-status">Disabled</span>
+        </div>
+      </div>
+      <label class="switch" for="enableToggle">
+        <input type="checkbox" id="enableToggle" aria-label="Enable reading mode">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" role="tablist">
+      <button id="tabProfile" class="tab active" role="tab" aria-selected="true" aria-controls="panelProfile">
+        Profiles
+      </button>
+      <button id="tabTypography" class="tab" role="tab" aria-selected="false" aria-controls="panelTypography">
+        Typography
+      </button>
+      <button id="tabFeatures" class="tab" role="tab" aria-selected="false" aria-controls="panelFeatures">
+        Features
+      </button>
+    </div>
+
+    <!-- Profile Panel -->
+    <div id="panelProfile" class="panel active" role="tabpanel" aria-labelledby="tabProfile">
+      <div class="profile-grid">
+        <button class="profile-card" data-profile="balanced" aria-pressed="true">
+          <span class="profile-icon" aria-hidden="true">⚖️</span>
+          <span class="profile-name">Balanced</span>
+          <span class="profile-desc">Everyday reading</span>
+        </button>
+        <button class="profile-card" data-profile="highFocus" aria-pressed="false">
+          <span class="profile-icon" aria-hidden="true">🎯</span>
+          <span class="profile-name">High Focus</span>
+          <span class="profile-desc">Deep work</span>
+        </button>
+        <button class="profile-card" data-profile="nightReading" aria-pressed="false">
+          <span class="profile-icon" aria-hidden="true">🌙</span>
+          <span class="profile-name">Night</span>
+          <span class="profile-desc">Low light</span>
+        </button>
+        <button class="profile-card" data-profile="documentation" aria-pressed="false">
+          <span class="profile-icon" aria-hidden="true">📖</span>
+          <span class="profile-name">Docs</span>
+          <span class="profile-desc">Technical</span>
+        </button>
+        <button class="profile-card" data-profile="sepia" aria-pressed="false">
+          <span class="profile-icon" aria-hidden="true">📜</span>
+          <span class="profile-name">Sepia</span>
+          <span class="profile-desc">Warm tones</span>
+        </button>
+        <button class="profile-card" data-profile="adhd" aria-pressed="false">
+          <span class="profile-icon" aria-hidden="true">🧠</span>
+          <span class="profile-name">ADHD</span>
+          <span class="profile-desc">Less distraction</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Typography Panel -->
+    <div id="panelTypography" class="panel" role="tabpanel" aria-labelledby="tabTypography" hidden>
+      <!-- Font Selection -->
+      <div class="form-group">
+        <label for="fontSelect" class="form-label">Font Family</label>
+        <div class="font-preview-list">
+          <label class="font-option">
+            <input type="radio" name="fontFamily" value="system" checked>
+            <span class="font-preview"
+              style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">System Sans</span>
+          </label>
+          <label class="font-option">
+            <input type="radio" name="fontFamily" value="OpenDyslexic">
+            <span class="font-preview" style="font-family: 'Comic Sans MS', cursive;">OpenDyslexic</span>
+          </label>
+          <label class="font-option">
+            <input type="radio" name="fontFamily" value="serif">
+            <span class="font-preview" style="font-family: Georgia, serif;">Serif</span>
+          </label>
+          <label class="font-option">
+            <input type="radio" name="fontFamily" value="sans">
+            <span class="font-preview" style="font-family: Arial, sans-serif;">Arial Sans</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Font Size -->
+      <div class="form-group">
+        <div class="slider-header">
+          <label for="fontSizeSlider" class="form-label">Font Size</label>
+          <span id="fontSizeValue" class="slider-value">100%</span>
+        </div>
+        <input type="range" id="fontSizeSlider" class="slider" min="50" max="200" value="100" step="5"
+          aria-label="Font size percentage">
+      </div>
+
+      <!-- Line Height -->
+      <div class="form-group">
+        <div class="slider-header">
+          <label for="lineHeightSlider" class="form-label">Line Height</label>
+          <span id="lineHeightValue" class="slider-value">1.6</span>
+        </div>
+        <input type="range" id="lineHeightSlider" class="slider" min="1" max="3" value="1.6" step="0.1"
+          aria-label="Line height">
+      </div>
+
+      <!-- Letter Spacing -->
+      <div class="form-group">
+        <div class="slider-header">
+          <label for="letterSpacingSlider" class="form-label">Letter Spacing</label>
+          <span id="letterSpacingValue" class="slider-value">1px</span>
+        </div>
+        <input type="range" id="letterSpacingSlider" class="slider" min="0" max="10" value="1" step="0.5"
+          aria-label="Letter spacing in pixels">
+      </div>
+
+      <!-- Word Spacing -->
+      <div class="form-group">
+        <div class="slider-header">
+          <label for="wordSpacingSlider" class="form-label">Word Spacing</label>
+          <span id="wordSpacingValue" class="slider-value">2px</span>
+        </div>
+        <input type="range" id="wordSpacingSlider" class="slider" min="0" max="15" value="2" step="1"
+          aria-label="Word spacing in pixels">
+      </div>
+
+      <!-- Paragraph Spacing -->
+      <div class="form-group">
+        <div class="slider-header">
+          <label for="paragraphSpacingSlider" class="form-label">Paragraph Spacing</label>
+          <span id="paragraphSpacingValue" class="slider-value">1.5em</span>
+        </div>
+        <input type="range" id="paragraphSpacingSlider" class="slider" min="0.5" max="4" value="1.5" step="0.25"
+          aria-label="Paragraph spacing">
+      </div>
+
+      <!-- Color Mode -->
+      <div class="form-group">
+        <label class="form-label">Color Mode</label>
+        <div class="color-mode-grid">
+          <label class="color-option">
+            <input type="radio" name="colorMode" value="normal" checked>
+            <span class="color-preview color-normal">Aa</span>
+            <span class="color-name">Normal</span>
+          </label>
+          <label class="color-option">
+            <input type="radio" name="colorMode" value="high-contrast">
+            <span class="color-preview color-high-contrast">Aa</span>
+            <span class="color-name">High</span>
+          </label>
+          <label class="color-option">
+            <input type="radio" name="colorMode" value="dark">
+            <span class="color-preview color-dark">Aa</span>
+            <span class="color-name">Dark</span>
+          </label>
+          <label class="color-option">
+            <input type="radio" name="colorMode" value="sepia">
+            <span class="color-preview color-sepia">Aa</span>
+            <span class="color-name">Sepia</span>
+          </label>
+          <label class="color-option">
+            <input type="radio" name="colorMode" value="cream">
+            <span class="color-preview color-cream">Aa</span>
+            <span class="color-name">Cream</span>
+          </label>
+          <label class="color-option">
+            <input type="radio" name="colorMode" value="grey">
+            <span class="color-preview color-grey">Aa</span>
+            <span class="color-name">Grey</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features Panel -->
+    <div id="panelFeatures" class="panel" role="tabpanel" aria-labelledby="tabFeatures" hidden>
+      <!-- BeeLine Gradient -->
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-info">
+            <span class="feature-icon" aria-hidden="true">🌈</span>
+            <div class="feature-text">
+              <span class="feature-name">BeeLine Gradient</span>
+              <span class="feature-desc">Color guide for eye tracking</span>
+            </div>
+          </div>
+          <label class="switch small" for="gradientToggle">
+            <input type="checkbox" id="gradientToggle" aria-label="Enable BeeLine gradient">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <div class="feature-options" id="gradientOptions">
+          <div class="slider-row">
+            <label for="gradientStrengthSlider">Strength</label>
+            <input type="range" id="gradientStrengthSlider" class="slider small" min="10" max="100" value="50" step="5">
+            <span id="gradientStrengthValue">50%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reading Ruler -->
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-info">
+            <span class="feature-icon" aria-hidden="true">📏</span>
+            <div class="feature-text">
+              <span class="feature-name">Reading Ruler</span>
+              <span class="feature-desc">Line focus guide</span>
+            </div>
+          </div>
+          <label class="switch small" for="rulerToggle">
+            <input type="checkbox" id="rulerToggle" aria-label="Enable reading ruler">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <div class="feature-options" id="rulerOptions">
+          <div class="ruler-type-grid">
+            <label class="ruler-type-option">
+              <input type="radio" name="rulerType" value="line" checked>
+              <span class="ruler-preview ruler-line"></span>
+              <span class="ruler-name">Line</span>
+            </label>
+            <label class="ruler-type-option">
+              <input type="radio" name="rulerType" value="focus-1">
+              <span class="ruler-preview ruler-focus-1"></span>
+              <span class="ruler-name">1 Line</span>
+            </label>
+            <label class="ruler-type-option">
+              <input type="radio" name="rulerType" value="focus-3">
+              <span class="ruler-preview ruler-focus-3"></span>
+              <span class="ruler-name">3 Lines</span>
+            </label>
+            <label class="ruler-type-option">
+              <input type="radio" name="rulerType" value="focus-paragraph">
+              <span class="ruler-preview ruler-focus-para"></span>
+              <span class="ruler-name">Para</span>
+            </label>
+          </div>
+          <div class="slider-row">
+            <label for="rulerOpacitySlider">Opacity</label>
+            <input type="range" id="rulerOpacitySlider" class="slider small" min="20" max="100" value="80" step="5">
+            <span id="rulerOpacityValue">80%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Immersive Mode -->
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-info">
+            <span class="feature-icon" aria-hidden="true">🔲</span>
+            <div class="feature-text">
+              <span class="feature-name">Immersive Mode</span>
+              <span class="feature-desc">Dim distractions</span>
+            </div>
+          </div>
+          <label class="switch small" for="immersiveToggle">
+            <input type="checkbox" id="immersiveToggle" aria-label="Enable immersive mode">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <div class="feature-options" id="immersiveOptions">
+          <div class="slider-row">
+            <label for="maxWidthSlider">Max Width</label>
+            <input type="range" id="maxWidthSlider" class="slider small" min="400" max="1200" value="720" step="40">
+            <span id="maxWidthValue">720px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text-to-Speech -->
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-info">
+            <span class="feature-icon" aria-hidden="true">🔊</span>
+            <div class="feature-text">
+              <span class="feature-name">Text-to-Speech</span>
+              <span class="feature-desc">Read aloud</span>
+            </div>
+          </div>
+          <div class="tts-controls">
+            <button id="ttsPlayBtn" class="tts-btn" aria-label="Play text-to-speech">▶</button>
+            <button id="ttsPauseBtn" class="tts-btn" aria-label="Pause text-to-speech" disabled>⏸</button>
+            <button id="ttsStopBtn" class="tts-btn" aria-label="Stop text-to-speech" disabled>⏹</button>
+          </div>
+        </div>
+        <div class="feature-options">
+          <div class="slider-row">
+            <label for="ttsRateSlider">Speed</label>
+            <input type="range" id="ttsRateSlider" class="slider small" min="0.5" max="2" value="1" step="0.1">
+            <span id="ttsRateValue">1.0x</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <label class="remember-site">
+        <input type="checkbox" id="rememberSiteToggle">
+        <span>Save settings for this site</span>
+      </label>
+      <div class="shortcuts-hint">
+        <span class="shortcut-key">Alt+Shift+D</span>
+        <span>Toggle</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="utils/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+
+</html>
