@@ -125,6 +125,11 @@ function handleMessage(message, sender, sendResponse) {
       sendResponse({ success: true });
       return true;
 
+    case 'simplifySelection':
+      handleSimplifySelection();
+      sendResponse({ success: true });
+      return true;
+
     default:
       sendResponse({ error: 'Unknown action' });
   }
@@ -176,6 +181,10 @@ async function applySettings(settings) {
   } else {
     removeImmersiveMode();
   }
+
+  // Show progress bar and reading badge when enabled
+  showProgressBar();
+  showReadingBadge();
 }
 
 /**
@@ -203,6 +212,10 @@ function removeAllStyles() {
   if (ttsState.isPlaying) {
     stopTTS();
   }
+
+  // Remove progress bar and badge
+  hideProgressBar();
+  hideReadingBadge();
 
   // Remove body class
   document.body.classList.remove('dyslexia-reader-enabled');
@@ -1048,4 +1061,284 @@ if (typeof window !== 'undefined') {
     getCurrentSettings: () => currentSettings,
     isEnabled: () => isEnabled
   };
+}
+
+// ========================================
+// Floating TTS Button
+// ========================================
+
+const FLOATING_BTN_ID = 'dyslexia-floating-tts-btn';
+
+/**
+ * Create and inject the floating TTS button
+ */
+function createFloatingButton() {
+  if (document.getElementById(FLOATING_BTN_ID)) return;
+
+  const btn = document.createElement('div');
+  btn.id = FLOATING_BTN_ID;
+  btn.innerHTML = `
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+    </svg>
+  `;
+
+  // Styles
+  Object.assign(btn.style, {
+    position: 'absolute',
+    zIndex: '2147483647', // Max z-index
+    display: 'none',
+    backgroundColor: '#333',
+    color: '#fff',
+    borderRadius: '50%',
+    padding: '8px',
+    cursor: 'pointer',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+    transition: 'opacity 0.2s, transform 0.2s',
+    alignItems: 'center',
+    justifyContent: 'center'
+  });
+
+  // Hover effect
+  btn.onmouseover = () => btn.style.transform = 'scale(1.1)';
+  btn.onmouseout = () => btn.style.transform = 'scale(1)';
+
+  // Click handler
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault(); // Prevent losing selection
+    e.stopPropagation();
+    startTTS();
+    hideFloatingButton();
+  });
+
+  document.body.appendChild(btn);
+}
+
+/**
+ * Show floating button at coordinates
+ */
+function showFloatingButton(x, y) {
+  const btn = document.getElementById(FLOATING_BTN_ID);
+  if (!btn) {
+    createFloatingButton();
+    return showFloatingButton(x, y); // Retry
+  }
+
+  // Adjust for scroll
+  const scrollX = window.scrollX || window.pageXOffset;
+  const scrollY = window.scrollY || window.pageYOffset;
+
+  btn.style.left = `${x + scrollX}px`;
+  btn.style.top = `${y + scrollY - 40}px`; // Position above selection
+  btn.style.display = 'flex';
+}
+
+/**
+ * Hide floating button
+ */
+function hideFloatingButton() {
+  const btn = document.getElementById(FLOATING_BTN_ID);
+  if (btn) {
+    btn.style.display = 'none';
+  }
+}
+
+/**
+ * Handle selection changes
+ */
+function handleSelectionEnd(e) {
+  // Wait slightly for selection to finalize
+  setTimeout(() => {
+    const selection = window.getSelection();
+
+    // Check if valid selection exists
+    if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+      hideFloatingButton();
+      return;
+    }
+
+    // Get range and coordinates
+    const range = selection.getRangeAt(0);
+    const rects = range.getClientRects();
+
+    if (rects.length > 0) {
+      // Position at the end of the last rect
+      const lastRect = rects[rects.length - 1];
+      showFloatingButton(lastRect.right, lastRect.top);
+    }
+  }, 10);
+}
+
+// Attach listeners
+document.addEventListener('mouseup', handleSelectionEnd);
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'Shift' || e.key.startsWith('Arrow')) {
+    handleSelectionEnd(e);
+  }
+});
+document.addEventListener('mousedown', (e) => {
+  // If clicking outside button, hide it
+  if (e.target.id !== FLOATING_BTN_ID) {
+    hideFloatingButton();
+  }
+});
+
+// Initialize
+createFloatingButton();
+
+
+// ========================================
+// Reading Progress Bar
+// ========================================
+
+let progressScrollHandler = null;
+
+function createProgressBar() {
+  if (document.getElementById("dyslexia-progress-bar")) return;
+
+  const bar = document.createElement("div");
+  bar.id = "dyslexia-progress-bar";
+  Object.assign(bar.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    height: "4px",
+    width: "0%",
+    background: "linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7)",
+    zIndex: "999999",
+    transition: "width 0.15s ease-out",
+    borderRadius: "0 2px 2px 0",
+    boxShadow: "0 0 8px rgba(99, 102, 241, 0.4)"
+  });
+
+  document.body.appendChild(bar);
+
+  progressScrollHandler = () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.body.scrollHeight - window.innerHeight;
+    if (docHeight <= 0) { bar.style.width = "100%"; return; }
+    const progress = Math.min((scrollTop / docHeight) * 100, 100);
+    bar.style.width = progress + "%";
+  };
+  window.addEventListener("scroll", progressScrollHandler);
+}
+
+function showProgressBar() {
+  createProgressBar();
+}
+
+function hideProgressBar() {
+  const bar = document.getElementById("dyslexia-progress-bar");
+  if (bar) bar.remove();
+  if (progressScrollHandler) {
+    window.removeEventListener("scroll", progressScrollHandler);
+    progressScrollHandler = null;
+  }
+}
+
+// ========================================
+// Reading Mode Badge
+// ========================================
+
+let badgeFadeTimeout = null;
+
+function createReadingBadge() {
+  if (document.getElementById("dyslexia-reading-badge")) return;
+
+  const badge = document.createElement("div");
+  badge.id = "dyslexia-reading-badge";
+  badge.innerHTML = "📖 Reading Mode Active";
+  Object.assign(badge.style, {
+    position: "fixed",
+    bottom: "20px",
+    right: "20px",
+    background: "rgba(30, 30, 46, 0.9)",
+    color: "#e0e0e0",
+    padding: "8px 16px",
+    borderRadius: "24px",
+    fontSize: "12px",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    zIndex: "999999",
+    opacity: "0",
+    transition: "opacity 0.4s ease",
+    backdropFilter: "blur(8px)",
+    border: "1px solid rgba(99, 102, 241, 0.3)",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
+    pointerEvents: "none"
+  });
+
+  document.body.appendChild(badge);
+
+  // Fade in
+  requestAnimationFrame(() => { badge.style.opacity = "0.85"; });
+
+  // Auto-fade after 3 seconds
+  badgeFadeTimeout = setTimeout(() => {
+    badge.style.opacity = "0";
+    setTimeout(() => badge.remove(), 400);
+  }, 3000);
+}
+
+function showReadingBadge() {
+  hideReadingBadge();
+  createReadingBadge();
+}
+
+function hideReadingBadge() {
+  if (badgeFadeTimeout) { clearTimeout(badgeFadeTimeout); badgeFadeTimeout = null; }
+  const badge = document.getElementById("dyslexia-reading-badge");
+  if (badge) badge.remove();
+}
+
+// ========================================
+// AI Text Simplification (Placeholder)
+// ========================================
+
+function handleSimplifySelection() {
+  const selection = window.getSelection();
+  const selectedText = selection?.toString().trim();
+
+  if (!selectedText || selectedText.length === 0) {
+    showSimplifyToast('⚠️ Please select some text first, then try again.');
+    return;
+  }
+
+  // Show a placeholder notification — AI integration is a future feature
+  showSimplifyToast('🤖 AI Simplification is coming soon! Selected ' + selectedText.split(/\s+/).length + ' words.');
+}
+
+function showSimplifyToast(message) {
+  // Remove existing toast
+  const existing = document.getElementById('dyslexia-simplify-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'dyslexia-simplify-toast';
+  toast.textContent = message;
+  Object.assign(toast.style, {
+    position: 'fixed',
+    bottom: '60px',
+    right: '20px',
+    background: 'rgba(30, 30, 46, 0.95)',
+    color: '#e0e0e0',
+    padding: '12px 20px',
+    borderRadius: '12px',
+    fontSize: '13px',
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    zIndex: '999999',
+    opacity: '0',
+    transition: 'opacity 0.3s ease',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(99, 102, 241, 0.3)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+    maxWidth: '320px'
+  });
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => { toast.style.opacity = '1'; });
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
 }

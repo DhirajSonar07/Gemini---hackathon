@@ -561,3 +561,13 @@ async function saveAndApply() {
     // console.error('[Popup] Error saving settings:', error);
   }
 }
+document.getElementById("simplifyBtn")?.addEventListener("click", async () => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id && !tab.url?.startsWith('chrome://')) {
+      await chrome.tabs.sendMessage(tab.id, { action: "simplifySelection" });
+    }
+  } catch (e) {
+    // Content script may not be injected yet
+  }
+});
